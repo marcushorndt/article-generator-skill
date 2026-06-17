@@ -242,7 +242,7 @@ function renderMeta(raw){
     var disp;
     if(f[0] === 'status') disp = statusChip(val);
     else if(f[0] === 'tags' && Array.isArray(val)) disp = val.map(function(t){ return '<span class="tag">'+esc(t)+'</span>'; }).join('');
-    else if(f[0] === 'url' && /^https?:/.test(val)) disp = '<a href="'+esc(val)+'" target="_blank">'+esc(val)+'</a>';
+    else if(f[0] === 'url' && /^https?:/.test(val)) disp = '<a href="'+esc(val)+'" target="_blank" rel="noopener">'+esc(val)+'</a>';
     else disp = esc(Array.isArray(val) ? val.join(', ') : val);
     rows += '<div class="mrow"><div class="mkey">'+f[1]+'</div><div class="mval">'+disp+'</div></div>';
   });
@@ -250,7 +250,7 @@ function renderMeta(raw){
 }
 function inline(s){
   s = esc(s);
-  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
   s = s.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
   s = s.replace(/\*([^*]+?)\*/g, '<em>$1</em>');
   return s;
@@ -642,6 +642,12 @@ function generateImage(btn){
     fire({ article: articleId(), image_folder: field(document.getElementById('src').value,'image_folder') || '', prompt: prompt, variability: variability, source: sourceUrl || undefined });
   }
 }
+
+// safety net: any external link opens in a new tab (covers anything rendered later)
+document.addEventListener('click', function(e){
+  var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+  if(a && /^https?:/i.test(a.href) && a.target !== '_blank'){ a.target = '_blank'; a.rel = 'noopener'; }
+});
 
 // keep the source preview in sync + persist prompt/source per draft (wired once)
 (function(){
