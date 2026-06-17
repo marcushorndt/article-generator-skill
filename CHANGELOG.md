@@ -6,7 +6,19 @@ Pre-1.0 (`0.x`): minor versions may include breaking changes.
 
 ## [Unreleased]
 
+### Changed
+- **Two-repo layout.** Author data (`BRAIN.md`, `brainstorms/ drafts/ published/
+  images/ sources/`) now lives under `content/`, a separate private repo; this repo is
+  infrastructure only and git-ignores `content/`. The server, export snapshot, and
+  cm-image CLI read/write under `content/`.
+
 ### Added
+- **`init`** (`npm run init` / `make init`) — scaffold the `content/` skeleton
+  (`BRAIN.md` from `templates/BRAIN.template.md` + the five folders) on a fresh clone,
+  or `npm run init -- <git-url>` / `make init CONTENT=<git-url>` to clone your private
+  content repo into `content/`. Idempotent.
+
+### Added (image studio)
 - **In-app image generation.** The export page's Image panel is now a studio: write a
   prompt, optionally pick a **source image** (a selfie from `sources/`, an existing
   article image, or upload a new selfie — saved to `sources/` for reuse), set

@@ -1,8 +1,10 @@
-.PHONY: help install serve build image set-key
+.PHONY: help install init serve build image set-key
 
 help:
 	@echo "Article Generator Skill — make targets:"
 	@echo "  make install   Install deps (Quill, Turndown) and build the export snapshot"
+	@echo "  make init      Create the content/ folder skeleton (BRAIN, drafts, images, …)"
+	@echo "                 or clone yours:  make init CONTENT=<git-url>"
 	@echo "  make set-key   Store your ContentMaschine API key user-level (once per machine)"
 	@echo "  make serve     Run the local edit/save server at http://localhost:4321"
 	@echo "  make build     Rebuild drafts-data.js (static file:// export page)"
@@ -12,6 +14,9 @@ help:
 
 install:
 	npm install
+
+init:
+	node tools/init-content.js $(CONTENT)
 
 set-key:
 	node tools/set-key.js $(if $(KEY),--key $(KEY),)

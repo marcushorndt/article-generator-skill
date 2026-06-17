@@ -4,6 +4,7 @@
   "private": true,
   "description": "Short-form article writing system: a /article skill plus a local export/edit page that reads and writes the markdown drafts.",
   "scripts": {
+    "init": "node tools/init-content.js",
     "serve": "node server.js",
     "build-export": "node tools/build-export-data.js",
     "set-key": "node tools/set-key.js",

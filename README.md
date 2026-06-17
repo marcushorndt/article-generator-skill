@@ -19,15 +19,21 @@ One working folder, two git repos:
   `images/`, `sources/`. Its own git repo; `content/` is git-ignored here so the two
   never mix. Keep it on a private remote.
 
-The app reads and writes the article files under `content/`. After cloning the infra
-repo on a new machine, clone your content repo into `content/` (and run `npm run set-key`).
+The app reads and writes the article files under `content/`.
 
 ## Setup
 
 ```
-npm install        # fetches Quill + Turndown; postinstall builds the export snapshot
-npm run set-key    # optional: store your ContentMaschine key (once per machine)
+npm install                       # deps (Quill, Turndown); builds the export snapshot
+npm run init                      # create an empty content/ skeleton …
+#   or: npm run init -- <git-url> # … or clone your private content repo into content/
+#   (make: `make init`  /  `make init CONTENT=<git-url>`)
+npm run set-key                   # optional: store your ContentMaschine key (per machine)
 ```
+
+`npm run init` scaffolds `content/` (`BRAIN.md` + `brainstorms/ drafts/ published/
+images/ sources/`) if it's missing, or clones your private content repo into it. It's
+idempotent — it won't touch an existing `content/`.
 
 `set-key` writes the key user-level to `~/.config/contentmaschine/credentials`
 (chmod 600) — **never** into the repo. It's per-machine: clone on another computer and
