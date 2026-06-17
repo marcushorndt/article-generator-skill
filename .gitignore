@@ -1,0 +1,13 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated snapshot for the export page (rebuild with: node tools/build-export-data.js)
+drafts-data.js
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Content lives in its own (private) repo — never tracked by the infra repo
+content/

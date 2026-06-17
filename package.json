@@ -1,0 +1,16 @@
+{
+  "name": "article-generator-skill",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Short-form article writing system: a /article skill plus a local export/edit page that reads and writes the markdown drafts.",
+  "scripts": {
+    "serve": "node server.js",
+    "build-export": "node tools/build-export-data.js",
+    "set-key": "node tools/set-key.js",
+    "postinstall": "node tools/build-export-data.js"
+  },
+  "dependencies": {
+    "quill": "2.0.3",
+    "turndown": "7.2.0"
+  }
+}

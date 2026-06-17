@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Article Export</title>
+<link rel="stylesheet" href="node_modules/quill/dist/quill.snow.css">
+<style>
+  :root { --fg:#1a1a1a; --muted:#6b6b6b; --line:#e3e3e3; --accent:#b5471f; --bg:#faf9f7; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+         color:var(--fg); background:var(--bg); line-height:1.5; }
+  header { padding:18px 24px; border-bottom:1px solid var(--line); background:#fff;
+           display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:17px; white-space:nowrap; }
+  header .pick { display:flex; align-items:center; gap:8px; flex:1; min-width:260px; }
+  header select { font-size:14px; padding:7px 10px; border:1px solid var(--line); border-radius:8px; flex:1; max-width:520px; }
+  .page { max-width:none; margin:0; padding:26px 40px 90px; }
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:28px; align-items:start; }
+  @media (max-width:760px){ .cols{ grid-template-columns:1fr; } }
+  button { font-size:13px; padding:8px 14px; border:1px solid var(--line); background:#fff; border-radius:8px;
+           cursor:pointer; font-weight:600; }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button:active { transform: translateY(1px); }
+  .field { margin:0 0 22px; }
+  .field .lab { font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:7px; }
+  .field .val { display:flex; gap:8px; align-items:flex-start; }
+  .field .val .txt { flex:1; padding:12px 14px; border:1px solid var(--line); border-radius:8px; background:#fff; min-height:24px; font-size:15px; line-height:1.45; }
+  .field .val .txt[contenteditable] { cursor:text; }
+  .field .val .txt[contenteditable]:hover { border-color:#c9c9c9; }
+  .field .val .txt[contenteditable]:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+  .note { background:#fff5ef; border:1px solid #f3d6c6; color:#8a3a16; padding:11px 13px; border-radius:8px; font-size:13px; }
+  .note ul { margin:6px 0 0 18px; padding:0; word-break:break-all; }
+  .imgrow { display:flex; flex-direction:column; align-items:flex-start; gap:8px; margin-top:10px; }
+  .note img.thumb { max-width:380px; width:100%; border-radius:6px; margin-top:8px; display:block; }
+  .studio { margin-top:12px; border:1px solid var(--line); border-radius:8px; background:#fff; padding:12px; }
+  .studio textarea { width:100%; border:1px solid var(--line); border-radius:8px; padding:10px 12px; font-size:14px;
+                     font-family:inherit; line-height:1.45; resize:vertical; }
+  .studio textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+  .genrow { display:flex; flex-wrap:wrap; gap:12px 16px; align-items:flex-end; margin-top:10px; }
+  .genlab { display:flex; flex-direction:column; gap:4px; font-size:11px; text-transform:uppercase;
+            letter-spacing:.03em; color:var(--muted); }
+  .genlab select, .genlab input[type=number] { font-size:13px; padding:6px 8px; border:1px solid var(--line);
+            border-radius:7px; background:#fff; min-width:90px; text-transform:none; color:var(--fg); }
+  .genlab.file { font-size:11px; }
+  .genrow .primary { margin-left:auto; }
+  .genstatus { margin-top:10px; font-size:13px; color:var(--muted); min-height:0; }
+  .genstatus.err { color:#b5471f; }
+  .srcpreview { width:64px; height:36px; object-fit:cover; border-radius:6px; border:1px solid var(--line); background:#f0eee9; }
+  /* hero: the big, currently-selected cover */
+  .hero { margin-bottom:10px; }
+  .hero .heroimg { width:100%; aspect-ratio:16/9; object-fit:cover; display:block; border-radius:8px;
+                   border:1px solid var(--line); background:#f0eee9; cursor:pointer; }
+  .hero.isfeatured .heroimg { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+  .hero .herobar { display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .hero .heroname { font-size:12px; color:var(--muted); word-break:break-all; flex:1; min-width:120px; }
+  .hero .heroname b { color:var(--accent); }
+  .hero .empty { font-size:13px; color:var(--muted); border:1px dashed var(--line); border-radius:8px;
+                 padding:22px 14px; text-align:center; background:#fbfaf8; }
+  .hero.dragover .heroimg, .hero.dragover .empty { outline:2px dashed var(--accent); outline-offset:3px; }
+  .hero.dragover { position:relative; }
+  /* strip: horizontally scrollable / drag-scrollable thumbnail slots */
+  .strip { display:flex; gap:8px; overflow-x:auto; padding:2px 0 8px; margin-bottom:6px;
+           scroll-behavior:smooth; cursor:grab; -webkit-overflow-scrolling:touch; }
+  .strip.dragging { cursor:grabbing; scroll-behavior:auto; }
+  .strip:empty { display:none; }
+  .strip::-webkit-scrollbar { height:8px; }
+  .strip::-webkit-scrollbar-thumb { background:#d8d5cf; border-radius:8px; }
+  .slot { position:relative; flex:0 0 auto; width:104px; border:1px solid var(--line); border-radius:7px;
+          overflow:hidden; background:#fff; cursor:pointer; }
+  .slot img { width:100%; aspect-ratio:16/9; object-fit:cover; display:block; background:#f0eee9; pointer-events:none; }
+  .slot.selected { border-color:#1a1a1a; box-shadow:0 0 0 1px #1a1a1a; }
+  .slot.featured { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+  .slot .star { position:absolute; top:3px; right:4px; font-size:12px; color:var(--accent);
+                text-shadow:0 0 3px #fff,0 0 3px #fff; }
+  .meta { display:flex; flex-direction:column; gap:8px; }
+  .mrow { display:flex; gap:10px; align-items:baseline; }
+  .mkey { width:104px; flex:none; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.03em; padding-top:1px; }
+  .mval { flex:1; font-size:13.5px; line-height:1.42; word-break:break-word; }
+  .badge { display:inline-block; color:#fff; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding:2px 9px; border-radius:20px; }
+  .statuschip { cursor:pointer; user-select:none; }
+  .chipsel { font-size:12px; font-weight:600; padding:3px 8px; border:1px solid var(--line); border-radius:20px; background:#fff; cursor:pointer; }
+  .tag { display:inline-block; background:#eee; color:#444; font-size:11px; padding:2px 8px; border-radius:5px; margin:0 4px 4px 0; }
+  details { margin-top:18px; font-size:13px; color:var(--muted); }
+  details textarea { width:100%; height:160px; font-family:ui-monospace,Menlo,monospace; font-size:12px;
+                     padding:10px; border:1px solid var(--line); border-radius:8px; margin-top:8px; }
+  .bodylab { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+  .bodylab span { font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+  #editorwrap { border:1px solid var(--line); border-radius:8px; background:#fff; margin-top:0; overflow:hidden; }
+  .ql-toolbar.ql-snow { border:none; border-bottom:1px solid var(--line); }
+  .ql-container.ql-snow { border:none; }
+  .ql-editor { font-family: Georgia, "Times New Roman", serif; font-size:19px; line-height:1.65; color:#1a1a1a; padding:24px 28px; min-height:320px; }
+  .ql-editor h2 { font-family:-apple-system,sans-serif; font-size:24px; margin:1.4em 0 .4em; line-height:1.25; }
+  .ql-editor h3 { font-family:-apple-system,sans-serif; font-size:20px; margin:1.2em 0 .4em; }
+  .ql-editor p { margin:0 0 1em; }
+  .ql-editor ul, .ql-editor ol { margin:0 0 1em; }
+  .ql-editor blockquote { border-left:3px solid var(--accent); color:#444; font-style:italic; }
+  .ql-editor hr { border:none; border-top:1px solid var(--line); margin:1.6em 0; }
+  .ql-editor a { color:var(--accent); }
+  .ql-editor.ql-blank::before { font-style:normal; color:var(--muted); left:28px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Article Export</h1>
+  <div class="pick">
+    <label for="draftsel" style="font-size:13px;color:var(--muted);">Draft:</label>
+    <select id="draftsel"></select>
+  </div>
+</header>
+
+<main class="page">
+  <div class="field">
+    <div class="lab">Title → your editor's title field</div>
+    <div class="val"><div class="txt" id="title" contenteditable="true" spellcheck="false" oninput="dirty=true" onblur="storeField('title')"></div><button class="primary" onclick="copyText('title', this)">Copy</button></div>
+  </div>
+  <div class="field">
+    <div class="lab">Subtitle → your editor's subtitle field</div>
+    <div class="val"><div class="txt" id="subtitle" contenteditable="true" spellcheck="false" oninput="dirty=true" onblur="storeField('subtitle')"></div><button class="primary" onclick="copyText('subtitle', this)">Copy</button></div>
+  </div>
+  <div class="cols">
+    <div class="field">
+      <div class="lab">Image → pick a featured cover, generate, or insert manually</div>
+      <div id="hero" class="hero"></div>
+      <div id="strip" class="strip"></div>
+      <div id="imgnote"></div>
+      <div id="studio" class="studio" style="display:none;">
+        <textarea id="genprompt" rows="3" placeholder="Describe the cover scene (the author's likeness comes from the source image, if any)…"></textarea>
+        <div class="genrow">
+          <label class="genlab">Source
+            <select id="gensource"><option value="">— none (text-to-image) —</option></select>
+          </label>
+          <img id="srcpreview" class="srcpreview" alt="" style="display:none;">
+          <label class="genlab" id="genvarwrap">Variability
+            <input type="number" id="genvar" min="1" max="5" value="3">
+          </label>
+          <label class="genlab file">Upload selfie<input type="file" id="gensrcfile" accept="image/*"></label>
+          <button class="primary" id="genbtn" onclick="generateImage(this)">Generate 16:9</button>
+        </div>
+        <div id="genstatus" class="genstatus"></div>
+      </div>
+    </div>
+    <div class="field">
+      <div class="lab">Meta (from frontmatter)</div>
+      <div id="meta" class="meta"></div>
+    </div>
+  </div>
+
+  <details>
+    <summary>View / edit Markdown source</summary>
+    <textarea id="src" placeholder="Markdown of the selected draft…"></textarea>
+    <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+      <button onclick="run(document.getElementById('src').value)">Render changes</button>
+      <label class="file" style="color:var(--muted);">or load file: <input type="file" id="file" accept=".md,.markdown,.txt"></label>
+    </div>
+  </details>
+
+  <div class="field">
+    <div class="lab bodylab"><span>Article Body</span><span style="display:flex;gap:8px;"><button id="savebtn" onclick="saveDraft(this)">Save to file</button><button class="primary" onclick="copyBody(this)">Copy body as rich text</button></span></div>
+    <div id="editorwrap"><div id="editor"></div></div>
+  </div>
+</main>
+
+<script src="node_modules/quill/dist/quill.js"></script>
+<script src="node_modules/turndown/dist/turndown.js"></script>
+<script src="drafts-data.js"></script>
+<script>
+// ---- Quill editor (inline corrections) ----
+var Delta = Quill.import('delta');
+var BlockEmbed = Quill.import('blots/block/embed');
+class Divider extends BlockEmbed {}
+Divider.blotName = 'divider'; Divider.tagName = 'hr';
+Quill.register(Divider, true);
+var quill = new Quill('#editor', {
+  theme: 'snow',
+  placeholder: 'Select a draft above…',
+  modules: { toolbar: [[{ header: [2, 3, false] }], ['bold','italic'], ['blockquote'], [{ list:'ordered' }, { list:'bullet' }], ['link'], ['clean']] }
+});
+quill.clipboard.addMatcher('HR', function(){ return new Delta().insert({ divider: true }); });
+// HTML -> Markdown (for saving the edited body back to the .md file), tuned to our style
+var turndownService = new TurndownService({ headingStyle:'atx', hr:'---', bulletListMarker:'-', emDelimiter:'*', strongDelimiter:'**', codeBlockStyle:'fenced' });
+turndownService.escape = function(s){ return s; };   // keep prose verbatim — no backslash escaping
+var currentKey = null;                                // path of the draft currently shown
+var dirty = false;                                    // are there unsaved changes?
+quill.on('text-change', function(d, o, source){ if(source === 'user') dirty = true; });
+function field(raw, key){
+  var fm = raw.match(/^﻿?\s*---\r?\n([\s\S]*?)\r?\n---/);
+  if(!fm) return '';
+  var m = fm[1].match(new RegExp('^'+key+':\\s*(.*)$','m'));
+  if(!m) return '';
+  return m[1].trim().replace(/^["']/,'').replace(/["']$/,'');
+}
+function stripFrontmatter(md){
+  md = md.replace(/^﻿?\s*---\r?\n[\s\S]*?\r?\n---\s*\r?\n?/, '');
+  md = md.replace(/<!--[\s\S]*?-->/g, '');
+  return md.replace(/^\s+/, '');
+}
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmRaw(raw, key){
+  var fm = raw.match(/^﻿?\s*---\r?\n([\s\S]*?)\r?\n---/);
+  if(!fm) return '';
+  var m = fm[1].match(new RegExp('^'+key+':\\s*(.*)$','m'));
+  return m ? m[1].trim() : '';
+}
+function cleanVal(v){
+  v = v.trim();
+  if(/^\[.*\]$/.test(v)){ try { return JSON.parse(v.replace(/'/g,'"')); } catch(e){ return v.replace(/^\[|\]$/g,''); } }
+  return v.replace(/^["']/,'').replace(/["']$/,'');
+}
+var META_FIELDS = [
+  ['status','Status'], ['number','No.'], ['platform','Platform'], ['created','Created'],
+  ['audience','Audience'], ['promise','Promise'], ['core_message','Core message'],
+  ['hook','Hook'], ['cta','CTA'], ['tags','Tags'], ['related','Related'],
+  ['url','URL'], ['image_folder','Image folder'], ['featured_image','Featured image']
+];
+function statusColor(s){ return ({ published:'#1f7a3d', draft:'#b5471f', brainstorm:'#6b6b6b' })[s] || '#6b6b6b'; }
+function statusChip(s){
+  return '<span class="badge statuschip" data-status="'+esc(s)+'" style="background:'+statusColor(s)+'" title="Click to change status & move the file" onclick="editStatusChip(this)">'+esc(s)+' ▾</span>';
+}
+function editStatusChip(el){
+  if(location.protocol === 'file:'){ alert('Run the server (npm run serve) and open http://localhost:4321/ to change status.'); return; }
+  var cur = el.getAttribute('data-status');
+  var sel = document.createElement('select');
+  sel.className = 'chipsel';
+  ['brainstorm','draft','published'].forEach(function(s){ var o = document.createElement('option'); o.value = s; o.textContent = s; if(s === cur) o.selected = true; sel.appendChild(o); });
+  el.replaceWith(sel);
+  sel.focus();
+  try { sel.showPicker(); } catch(e){}            // open the dropdown immediately where supported
+  var applied = false;
+  sel.addEventListener('change', function(){ applied = true; setStatus(sel.value); });   // moves the file + re-renders the chip
+  sel.addEventListener('blur', function(){ if(!applied) renderMeta(document.getElementById('src').value); });
+}
+function renderMeta(raw){
+  var el = document.getElementById('meta'); var rows = '';
+  META_FIELDS.forEach(function(f){
+    var val = cleanVal(fmRaw(raw, f[0]));
+    if(val === '' || (Array.isArray(val) && val.length === 0)) return;
+    var disp;
+    if(f[0] === 'status') disp = statusChip(val);
+    else if(f[0] === 'tags' && Array.isArray(val)) disp = val.map(function(t){ return '<span class="tag">'+esc(t)+'</span>'; }).join('');
+    else if(f[0] === 'url' && /^https?:/.test(val)) disp = '<a href="'+esc(val)+'" target="_blank">'+esc(val)+'</a>';
+    else disp = esc(Array.isArray(val) ? val.join(', ') : val);
+    rows += '<div class="mrow"><div class="mkey">'+f[1]+'</div><div class="mval">'+disp+'</div></div>';
+  });
+  el.innerHTML = rows || '<span style="color:var(--muted);font-size:13px;">No metadata.</span>';
+}
+function inline(s){
+  s = esc(s);
+  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+  s = s.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/\*([^*]+?)\*/g, '<em>$1</em>');
+  return s;
+}
+function renderMd(md){
+  var lines = stripFrontmatter(md).split(/\r?\n/);
+  var html = '', images = [], i = 0;
+  function isBlockStart(l){ return /^(#{1,6}\s|>|\d+\.\s|[-*]\s|---+\s*$|!\[)/.test(l); }
+  while(i < lines.length){
+    var line = lines[i];
+    if(/^\s*$/.test(line)){ i++; continue; }
+    var im = line.match(/^!\[[^\]]*\]\(([^)]+)\)\s*$/);
+    if(im){ images.push(im[1]); i++; continue; }
+    if(/^---+\s*$/.test(line)){ html += '<hr>'; i++; continue; }
+    var h = line.match(/^(#{1,6})\s+(.*)$/);
+    if(h){ var lvl = Math.max(2, h[1].length); html += '<h'+lvl+'>'+inline(h[2].trim())+'</h'+lvl+'>'; i++; continue; }
+    if(/^>\s?/.test(line)){ var bq=[]; while(i<lines.length && /^>\s?/.test(lines[i])){ bq.push(lines[i].replace(/^>\s?/,'')); i++; } html+='<blockquote>'+inline(bq.join(' '))+'</blockquote>'; continue; }
+    if(/^\d+\.\s+/.test(line)){ html+='<ol>'; while(i<lines.length && /^\d+\.\s+/.test(lines[i])){ html+='<li>'+inline(lines[i].replace(/^\d+\.\s+/,''))+'</li>'; i++; } html+='</ol>'; continue; }
+    if(/^[-*]\s+/.test(line)){ html+='<ul>'; while(i<lines.length && /^[-*]\s+/.test(lines[i])){ html+='<li>'+inline(lines[i].replace(/^[-*]\s+/,''))+'</li>'; i++; } html+='</ul>'; continue; }
+    var buf=[line]; i++;
+    while(i<lines.length && !/^\s*$/.test(lines[i]) && !isBlockStart(lines[i])){ buf.push(lines[i]); i++; }
+    html += '<p>'+inline(buf.join(' '))+'</p>';
+  }
+  return { html: html, images: images };
+}
+function run(raw, key){
+  if(!raw || !raw.trim()){ return; }
+  if(key !== undefined) currentKey = key;
+  var srcEl = document.getElementById('src');
+  if(srcEl.value !== raw){ srcEl.value = raw; }   // keep source in sync with the shown draft
+  document.getElementById('title').textContent = field(raw,'title');
+  document.getElementById('subtitle').textContent = field(raw,'subtitle');
+  var r = renderMd(raw);
+  var delta = quill.clipboard.convert({ html: r.html || '<p></p>' });
+  quill.setContents(delta, 'silent');
+  var note = document.getElementById('imgnote');
+  if(r.images.length){
+    var rows = r.images.map(function(u,i){
+      return '<div class="imgrow">'
+           + '<img class="thumb" id="thumb'+i+'" src="'+esc(u)+'" alt="" onerror="this.style.display=\'none\'">'
+           + '<button class="primary" onclick="copyImage('+i+', this)">Copy image</button></div>';
+    }).join('');
+    note.innerHTML = '<div class="note"><b>Image'+(r.images.length>1?'s':'')+'</b> (first = cover/featured). '
+      + 'Editors don\'t embed a URL — click "Copy image", then paste into your editor (it uploads automatically).'
+      + rows + '</div>';
+  } else {
+    note.innerHTML = '';                           // empty state is shown by the hero/gallery
+  }
+  renderMeta(raw);                               // status chip is rendered here
+  loadStudio(raw);                               // image generator + gallery for this draft
+  dirty = false;                                 // freshly loaded draft = clean
+}
+function setStatus(val){
+  var src = document.getElementById('src');
+  if(src.value){
+    var lines = src.value.split('\n'), inFm = false;
+    for(var i = 0; i < lines.length; i++){
+      var t = lines[i].trim();
+      if(t === '---'){ if(!inFm){ inFm = true; continue; } else break; }
+      if(inFm && /^status:/.test(lines[i])){ lines[i] = 'status: ' + val; break; }
+    }
+    src.value = lines.join('\n');
+    renderMeta(src.value);                       // refresh the status badge
+  }
+  if(location.protocol === 'file:'){ return; }   // can't persist/move without the server
+  if(!currentKey || currentKey === '(file)') return;
+  var content = buildMarkdown();
+  fetch('/api/status', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ path: currentKey, status: val, content: content }) })
+    .then(function(r){ if(!r.ok) throw new Error(); return r.json(); })
+    .then(function(res){
+      var oldPath = currentKey, newPath = res.path;            // file may have moved folders
+      if(window.DRAFTS){ delete window.DRAFTS[oldPath]; window.DRAFTS[newPath] = content; }
+      var sel = document.getElementById('draftsel');
+      for(var i = 0; i < sel.options.length; i++){
+        if(sel.options[i].value === oldPath){ sel.options[i].value = newPath; sel.options[i].textContent = newPath.replace(/\.md$/,''); break; }
+      }
+      currentKey = newPath; sel.value = newPath; src.value = content; dirty = false;
+    })
+    .catch(function(){ alert('Status change failed.'); });
+}
+function copyText(id, btn){
+  navigator.clipboard.writeText(document.getElementById(id).textContent).then(function(){ flash(btn); });
+}
+function storeField(id){
+  var el = document.getElementById(id);
+  var val = el.textContent.replace(/\s+/g, ' ').trim();
+  el.textContent = val;                       // normalize whitespace/newlines from contenteditable
+  var src = document.getElementById('src');
+  if(!src.value) return;
+  var lines = src.value.split('\n'), inFm = false, changed = false;
+  for(var i = 0; i < lines.length; i++){
+    var t = lines[i].trim();
+    if(t === '---'){ if(!inFm){ inFm = true; continue; } else break; }
+    if(inFm && new RegExp('^' + id + ':').test(lines[i])){
+      var nl = id + ': "' + val.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+      if(nl !== lines[i]){ lines[i] = nl; changed = true; }
+      break;
+    }
+  }
+  src.value = lines.join('\n');               // keep the Markdown source in sync
+  if(changed) saveCurrent(function(){ flashField(el); });   // save title/subtitle on blur
+}
+function flashField(el){ el.style.boxShadow = '0 0 0 2px var(--accent)'; setTimeout(function(){ el.style.boxShadow = ''; }, 600); }
+function copyImage(i, btn){
+  var img = document.getElementById('thumb'+i);
+  if(img) copyImageEl(img, btn);     // copy the bytes (with selection fallback for cross-origin)
+}
+function copyBody(btn){
+  var el = quill.root;
+  var range = document.createRange();
+  range.selectNodeContents(el);
+  var sel = window.getSelection();
+  sel.removeAllRanges(); sel.addRange(range);
+  try { document.execCommand('copy'); flash(btn); }
+  catch(e){ alert('Copy failed — select the preview manually and press Cmd/Ctrl+C.'); }
+  sel.removeAllRanges();
+}
+function flash(btn, label){ var o = btn.textContent; btn.textContent = label || '✓ copied'; setTimeout(function(){ btn.textContent = o; }, 1400); }
+// Reassemble the .md: frontmatter from the source (title/subtitle kept in sync on blur),
+// copy marker, and the edited body converted back to Markdown.
+function buildMarkdown(){
+  var src = document.getElementById('src').value;
+  var m = src.match(/^﻿?\s*---\r?\n[\s\S]*?\r?\n---/);
+  var fm = m ? m[0] : '';
+  var bodyMd = turndownService.turndown(quill.root.innerHTML).trim();
+  // keep our list style: single space after the marker (Turndown pads to align)
+  bodyMd = bodyMd.replace(/^([ \t]*)[-*][ \t]{2,}/gm, '$1- ').replace(/^([ \t]*)(\d+\.)[ \t]{2,}/gm, '$1$2 ');
+  return fm + '\n<!-- ↓↓↓ COPY FROM HERE INTO YOUR EDITOR ↓↓↓ -->\n\n' + bodyMd + '\n';
+}
+function saveCurrent(onOk){
+  if(location.protocol === 'file:') return;
+  if(!currentKey || currentKey === '(file)') return;
+  var content = buildMarkdown();
+  fetch('/api/save', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ path: currentKey, content: content }) })
+    .then(function(r){ if(!r.ok) throw new Error(); return r.json(); })
+    .then(function(){ if(window.DRAFTS) window.DRAFTS[currentKey] = content; document.getElementById('src').value = content; dirty = false; if(onOk) onOk(); })
+    .catch(function(){ alert('Save failed.'); });
+}
+function saveDraft(btn){
+  if(location.protocol === 'file:'){ alert('Saving needs the local server.\n\nRun:  npm run serve\nThen open  http://localhost:4321/'); return; }
+  if(!currentKey || currentKey === '(file)'){ alert('No saved draft selected.'); return; }
+  saveCurrent(function(){ flash(btn, '✓ saved'); });
+}
+
+// ---- Image studio (ContentMaschine generate/vary, gallery, set-featured) ----
+var onServer = location.protocol !== 'file:';
+var studioState = { folder: '', files: [], sources: [], featured: '' };
+function articleId(){
+  if(!currentKey || currentKey === '(file)') return '';
+  return currentKey.split('/').pop().replace(/\.md$/, '');     // e.g. "03-slug"
+}
+// Persist the generator prompt + source selection per draft in localStorage.
+function genKey(){ return 'articlegen.gen:' + (articleId() || '_'); }
+function genSave(){
+  try { localStorage.setItem(genKey(), JSON.stringify({
+    prompt: document.getElementById('genprompt').value,
+    source: document.getElementById('gensource').value
+  })); } catch(e){}
+}
+function genRestore(){
+  var saved = null; try { saved = JSON.parse(localStorage.getItem(genKey()) || 'null'); } catch(e){}
+  if(!saved) return;
+  var pr = document.getElementById('genprompt'); if(saved.prompt != null) pr.value = saved.prompt;
+  var sel = document.getElementById('gensource');
+  if(saved.source){ for(var i=0;i<sel.options.length;i++){ if(sel.options[i].value === saved.source){ sel.value = saved.source; break; } } }
+}
+// set a frontmatter key in #src (update in place, or insert before the closing ---)
+function setFm(key, val){
+  var src = document.getElementById('src'); if(!src.value) return;
+  var lines = src.value.split('\n'), inFm = false, done = false, closeAt = -1;
+  var nl = key + ': "' + String(val).replace(/\\/g,'\\\\').replace(/"/g,'\\"') + '"';
+  for(var i = 0; i < lines.length; i++){
+    var t = lines[i].trim();
+    if(t === '---'){ if(!inFm){ inFm = true; continue; } closeAt = i; break; }
+    if(inFm && new RegExp('^' + key + ':').test(lines[i])){ lines[i] = nl; done = true; break; }
+  }
+  if(!done && closeAt > -1){ lines.splice(closeAt, 0, nl); }
+  src.value = lines.join('\n');
+}
+function loadStudio(raw, selectName){
+  var studio = document.getElementById('studio');
+  var hero = document.getElementById('hero'), strip = document.getElementById('strip');
+  studioState.featured = field(raw, 'featured_image');
+  if(!onServer){
+    studio.style.display = 'none'; strip.innerHTML = '';
+    hero.className = 'hero';
+    hero.innerHTML = '<div class="empty">Run <code>npm run serve</code> and open <b>http://localhost:4321/</b> to generate images and pick a featured cover.</div>';
+    return;
+  }
+  studio.style.display = 'block';
+  var q = '?article=' + encodeURIComponent(articleId()) + '&image_folder=' + encodeURIComponent(field(raw,'image_folder') || '');
+  fetch('/api/images' + q).then(function(r){ return r.json(); }).then(function(d){
+    studioState.folder = d.folder || ''; studioState.files = d.files || []; studioState.sources = d.sources || [];
+    var btn = document.getElementById('genbtn'), st = document.getElementById('genstatus');
+    studioState.available = d.available !== false;
+    if(d.available === false){ btn.disabled = true; st.className = 'genstatus err';
+      st.textContent = 'No ContentMaschine API key on this machine. Run  npm run set-key  (then restart the server). The gallery still works.'; }
+    else if(!genBusy){ btn.disabled = false; if(st.textContent.indexOf('No ContentMaschine') === 0){ st.textContent = ''; st.className = 'genstatus'; } }
+    var sel = document.getElementById('gensource');
+    sel.innerHTML = '<option value="">— none (text-to-image) —</option>';
+    function optgroup(label, items){ if(!items.length) return; var g = document.createElement('optgroup'); g.label = label;
+      items.forEach(function(f){ var o = document.createElement('option'); o.value = f.url; o.textContent = f.name; g.appendChild(o); }); sel.appendChild(g); }
+    optgroup('Source pictures (sources/)', studioState.sources);
+    optgroup('This article (' + (d.folder || 'images') + ')', studioState.files);
+    genRestore();                                   // restore saved prompt + source for this draft
+    updateSrcPreview();
+    // pick which image is shown big: explicit request → featured → first
+    var names = studioState.files.map(function(f){ return f.name; });
+    var want = (selectName && names.indexOf(selectName) > -1) ? selectName
+             : (names.indexOf(studioState.featured) > -1 ? studioState.featured : (names[0] || ''));
+    studioState.selected = want;
+    renderImages();
+  }).catch(function(){ document.getElementById('hero').innerHTML = ''; });
+}
+function fileByName(name){ for(var i=0;i<studioState.files.length;i++){ if(studioState.files[i].name===name) return studioState.files[i]; } return null; }
+function renderImages(){
+  var hero = document.getElementById('hero'), strip = document.getElementById('strip');
+  if(!studioState.files.length){
+    hero.className = 'hero';
+    hero.innerHTML = '<div class="empty">No images yet in <b>' + esc(studioState.folder || 'this article') + '</b>.<br>Generate one below, or <b>drop an image here</b> to add it.</div>';
+    strip.innerHTML = ''; wireHeroDrop(); return;
+  }
+  var cur = fileByName(studioState.selected) || studioState.files[0];
+  var isFeat = cur.name === studioState.featured;
+  hero.className = 'hero' + (isFeat ? ' isfeatured' : '');
+  hero.innerHTML = '<img class="heroimg" id="heroimg" src="' + esc(cur.url) + '" alt="" title="Click to copy this image" onclick="copyImageEl(this, this)">'
+    + '<div class="herobar"><div class="heroname">' + (isFeat ? '<b>★ featured · </b>' : '') + esc(cur.name) + '</div>'
+    + '<button onclick="copyImageEl(document.getElementById(\'heroimg\'), this)">Copy image</button>'
+    + (isFeat ? '<button disabled>★ Featured</button>'
+              : '<button class="primary" onclick="setFeatured(\'' + jsq(cur.name) + '\', this)">★ Set as featured</button>') + '</div>';
+  strip.innerHTML = studioState.files.map(function(f){
+    var cl = 'slot' + (f.name === studioState.selected ? ' selected' : '') + (f.name === studioState.featured ? ' featured' : '');
+    return '<div class="' + cl + '" title="' + esc(f.name) + '" onclick="selectImage(\'' + jsq(f.name) + '\')">'
+      + (f.name === studioState.featured ? '<span class="star">★</span>' : '')
+      + '<img src="' + esc(f.url) + '" alt=""></div>';
+  }).join('');
+  wireStrip(); wireHeroDrop();
+}
+// Drop an external image onto the hero → ingest it into the article folder + feature it.
+function wireHeroDrop(){
+  var hero = document.getElementById('hero'); if(!hero || hero._wired) return; hero._wired = true;
+  hero.addEventListener('dragover', function(e){ if(!onServer) return; e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; hero.classList.add('dragover'); });
+  hero.addEventListener('dragleave', function(e){ if(e.target === hero || !hero.contains(e.relatedTarget)) hero.classList.remove('dragover'); });
+  hero.addEventListener('drop', function(e){
+    e.preventDefault(); hero.classList.remove('dragover');
+    if(!onServer){ alert('Run the local server (npm run serve) to add images.'); return; }
+    var files = e.dataTransfer && e.dataTransfer.files ? [].slice.call(e.dataTransfer.files).filter(function(f){ return /^image\//.test(f.type); }) : [];
+    if(!files.length){ var st = document.getElementById('genstatus'); st.className = 'genstatus err'; st.textContent = 'Drop an image file (png/jpg/webp/gif).'; return; }
+    ingestFiles(files);
+  });
+}
+function ingestFiles(files){
+  var st = document.getElementById('genstatus'); st.className = 'genstatus'; st.textContent = 'Adding ' + files.length + ' image' + (files.length > 1 ? 's' : '') + '…';
+  var src = document.getElementById('src').value;
+  var folder = field(src, 'image_folder') || '';
+  var lastName = null;
+  function one(i){
+    if(i >= files.length){
+      if(lastName){ setFeatured(lastName); }                 // dropped on the cover → make it featured
+      loadStudio(document.getElementById('src').value, lastName);
+      st.className = 'genstatus'; st.textContent = '✓ added ' + files.length + ' image' + (files.length > 1 ? 's' : '') + (lastName ? ' — "' + lastName + '" set as featured' : '');
+      return;
+    }
+    var f = files[i], rd = new FileReader();
+    rd.onload = function(){
+      fetch('/api/image/ingest', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ article: articleId(), image_folder: folder, name: f.name, data: rd.result }) })
+        .then(function(r){ return r.json(); })
+        .then(function(res){ if(res.ok){ lastName = res.file.name; } else { st.className = 'genstatus err'; st.textContent = 'Ingest failed: ' + (res.error || 'unknown'); } one(i + 1); })
+        .catch(function(){ st.className = 'genstatus err'; st.textContent = 'Ingest request failed.'; });
+    };
+    rd.readAsDataURL(f);
+  }
+  one(0);
+}
+function jsq(s){ return esc(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+function selectImage(name){ studioState.selected = name; renderImages(); }
+// Copy the actual image BYTES to the clipboard (as PNG) so editors embed/upload the
+// pixels — not a localhost URL (which pastes then 404s). Falls back to selecting the
+// node + execCommand for cross-origin images we can't fetch/canvas.
+function copyImageEl(img, btn){
+  if(!img) return;
+  var url = typeof img === 'string' ? img : img.src;
+  var okFlash = function(){ if(btn && btn.tagName === 'BUTTON') flash(btn); };
+  if(window.ClipboardItem && navigator.clipboard && navigator.clipboard.write){
+    fetch(url).then(function(r){ return r.blob(); })
+      .then(function(blob){ return blob.type === 'image/png' ? blob : toPng(blob); })
+      .then(function(png){ return navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]); })
+      .then(okFlash)
+      .catch(function(){ legacyCopyImage(img, btn); });   // CORS / unsupported → old behavior
+    return;
+  }
+  legacyCopyImage(img, btn);
+}
+// draw any image blob onto a canvas and re-encode as PNG (clipboard-safe format)
+function toPng(blob){
+  return new Promise(function(res, rej){
+    var im = new Image();
+    im.onload = function(){
+      var c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+      c.getContext('2d').drawImage(im, 0, 0);
+      c.toBlob(function(b){ b ? res(b) : rej(new Error('encode')); }, 'image/png');
+    };
+    im.onerror = rej; im.src = URL.createObjectURL(blob);
+  });
+}
+function legacyCopyImage(img, btn){
+  if(typeof img === 'string'){ alert('Copy failed — open the image and copy it manually.'); return; }
+  var range = document.createRange(); range.selectNode(img);
+  var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+  var ok = false; try { ok = document.execCommand('copy'); } catch(e){ ok = false; }
+  sel.removeAllRanges();
+  if(ok){ if(btn && btn.tagName === 'BUTTON') flash(btn); }
+  else { alert('Automatic copy failed — right-click the image → "Copy image".'); }
+}
+function setFeatured(name, btn){
+  if(!onServer){ alert('Run the server to change the featured image.'); return; }
+  setFm('featured_image', name);
+  if(studioState.folder) setFm('image_folder', '../' + studioState.folder);   // relative to the draft folder
+  studioState.featured = name; studioState.selected = name;
+  renderMeta(document.getElementById('src').value);
+  renderImages();
+  saveCurrent(function(){ if(btn) flash(btn, '★ set'); });
+}
+// live thumbnail next to the source dropdown (uploaded file wins over the selection)
+function updateSrcPreview(){
+  var sel = document.getElementById('gensource'), pv = document.getElementById('srcpreview');
+  var fileInput = document.getElementById('gensrcfile');
+  if(!pv) return;
+  if(fileInput && fileInput.files && fileInput.files[0]){
+    var rd = new FileReader(); rd.onload = function(){ pv.src = rd.result; pv.style.display = ''; }; rd.readAsDataURL(fileInput.files[0]); return;
+  }
+  if(sel && sel.value){ pv.src = sel.value; pv.style.display = ''; } else { pv.removeAttribute('src'); pv.style.display = 'none'; }
+}
+// drag-to-scroll the thumbnail strip (in addition to wheel/trackpad); wired once.
+// We only capture the pointer once it actually moves, so a plain tap stays a click
+// on the slot (and selectImage fires) instead of being swallowed by the capture.
+function wireStrip(){
+  var s = document.getElementById('strip'); if(s._wired) return; s._wired = true;
+  var down = false, dragging = false, sx = 0, sl = 0, moved = 0, pid = null;
+  s.addEventListener('pointerdown', function(e){ down = true; dragging = false; moved = 0; sx = e.clientX; sl = s.scrollLeft; pid = e.pointerId; });
+  s.addEventListener('pointermove', function(e){ if(!down) return; var dx = e.clientX - sx; if(Math.abs(dx) > moved) moved = Math.abs(dx);
+    if(!dragging && moved > 4){ dragging = true; s.classList.add('dragging'); try { s.setPointerCapture(pid); } catch(_){} }
+    if(dragging){ s.scrollLeft = sl - dx; } });
+  function up(){ if(!down) return; down = false; if(dragging){ s.classList.remove('dragging'); try { s.releasePointerCapture(pid); } catch(_){} } dragging = false; }
+  s.addEventListener('pointerup', up); s.addEventListener('pointercancel', up); s.addEventListener('pointerleave', up);
+  s.addEventListener('click', function(e){ if(moved > 6){ e.stopPropagation(); e.preventDefault(); } }, true);  // a real drag isn't a click
+}
+var genTimer = null, genBusy = false;
+var GEN_CTRLS = ['genprompt','gensource','genvar','gensrcfile'];
+function setGenBusy(on){
+  genBusy = on;
+  var btn = document.getElementById('genbtn');
+  btn.disabled = on; btn.textContent = on ? 'Generating…' : 'Generate 16:9';
+  GEN_CTRLS.forEach(function(id){ var el = document.getElementById(id); if(el) el.disabled = on; });
+}
+function generateImage(btn){
+  if(!onServer){ alert('Image generation needs the local server (npm run serve).'); return; }
+  if(genBusy) return;                                   // one job at a time
+  var prompt = document.getElementById('genprompt').value.trim();
+  var st = document.getElementById('genstatus');
+  if(!prompt){ st.className = 'genstatus err'; st.textContent = 'Write a prompt first.'; return; }
+  var variability = document.getElementById('genvar').value || '3';
+  var fileInput = document.getElementById('gensrcfile');
+  var sourceUrl = document.getElementById('gensource').value;
+  function done(){ clearInterval(genTimer); setGenBusy(false); }
+  function fire(payload){
+    setGenBusy(true); var dots = 0;
+    st.className = 'genstatus';
+    var mode = (payload.sourceData || payload.source) ? 'image-to-image' : 'text-to-image';
+    var base = 'Generating (' + mode + ', 16:9, model pro) — this can take 1–3 min';
+    st.textContent = base;
+    genTimer = setInterval(function(){ dots = (dots + 1) % 4; st.textContent = base + Array(dots + 1).join('.'); }, 600);
+    fetch('/api/image/generate', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) })
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        done();
+        if(!res.ok){ st.className = 'genstatus err'; st.textContent = 'Failed: ' + (res.error || 'unknown'); return; }
+        st.className = 'genstatus'; st.textContent = '✓ saved ' + res.file.name + ' (' + res.mode + ') — shown above';
+        fileInput.value = ''; updateSrcPreview();
+        loadStudio(document.getElementById('src').value, res.file.name);   // refresh + show the new image big
+      })
+      .catch(function(){ done(); st.className = 'genstatus err'; st.textContent = 'Request failed.'; });
+  }
+  if(fileInput.files && fileInput.files[0]){
+    var f = fileInput.files[0]; var rd = new FileReader();
+    rd.onload = function(){ fire({ article: articleId(), image_folder: field(document.getElementById('src').value,'image_folder') || '', prompt: prompt, variability: variability, sourceData: rd.result, sourceName: f.name }); };
+    rd.readAsDataURL(f);
+  } else {
+    fire({ article: articleId(), image_folder: field(document.getElementById('src').value,'image_folder') || '', prompt: prompt, variability: variability, source: sourceUrl || undefined });
+  }
+}
+
+// keep the source preview in sync + persist prompt/source per draft (wired once)
+(function(){
+  var s = document.getElementById('gensource'); if(s) s.addEventListener('change', function(){ updateSrcPreview(); genSave(); });
+  var f = document.getElementById('gensrcfile'); if(f) f.addEventListener('change', updateSrcPreview);
+  var p = document.getElementById('genprompt'); if(p) p.addEventListener('input', genSave);
+})();
+
+// ---- Dropdown + ?draft= param. Live from the server when served, else from drafts-data.js ----
+(function init(){
+  var sel = document.getElementById('draftsel');
+  var savebtn = document.getElementById('savebtn');
+  var onServer = location.protocol !== 'file:';
+  if(!onServer && savebtn){ savebtn.disabled = true; savebtn.title = 'Run "npm run serve" and open http://localhost:4321/ to save'; }
+
+  function boot(drafts){
+    if(!drafts || !Object.keys(drafts).length){ sel.innerHTML = '<option>No drafts found</option>'; return; }
+    window.DRAFTS = drafts;
+    var order = { drafts:0, brainstorms:1, published:2 };
+    var names = Object.keys(drafts).sort(function(a,b){
+      var da = a.split('/')[0], db = b.split('/')[0];
+      if(order[da] !== order[db]) return (order[da] == null ? 9 : order[da]) - (order[db] == null ? 9 : order[db]);
+      return b.split('/').pop().localeCompare(a.split('/').pop(), undefined, {numeric:true});
+    });
+    names.forEach(function(name){ var o = document.createElement('option'); o.value = name; o.textContent = name.replace(/\.md$/,''); sel.appendChild(o); });
+    var LS_KEY = 'articlegen.lastDraft';
+    sel.addEventListener('change', function(){ if(this.value){ try { localStorage.setItem(LS_KEY, this.value); } catch(e){} run(window.DRAFTS[this.value], this.value); } });
+    var pick = names[0];
+    var saved = null; try { saved = localStorage.getItem(LS_KEY); } catch(e){}
+    if(saved && drafts[saved]) pick = saved;
+    var q = (location.search.match(/[?&]draft=([^&]+)/) || [])[1];
+    if(q){ q = decodeURIComponent(q).toLowerCase(); var hit = names.find(function(n){ return n.toLowerCase().indexOf(q) > -1; }); if(hit) pick = hit; }
+    sel.value = pick;
+    run(drafts[pick], pick);
+  }
+
+  if(onServer){
+    fetch('/api/drafts').then(function(r){ return r.json(); }).then(boot).catch(function(){
+      if(window.DRAFTS) boot(window.DRAFTS); else sel.innerHTML = '<option>could not load drafts</option>';
+    });
+  } else if(window.DRAFTS){
+    boot(window.DRAFTS);
+  } else {
+    sel.innerHTML = '<option>drafts-data.js missing — run: node tools/build-export-data.js</option>';
+  }
+})();
+
+document.getElementById('file').addEventListener('change', function(e){
+  var f = e.target.files[0]; if(!f) return;
+  var rd = new FileReader();
+  rd.onload = function(){ document.getElementById('src').value = rd.result; run(rd.result, '(file)'); };
+  rd.readAsText(f, 'utf-8');
+});
+
+// Warn before leaving/refreshing with unsaved changes
+window.addEventListener('beforeunload', function(e){ if(dirty){ e.preventDefault(); e.returnValue = ''; } });
+</script>
+</body>
+</html>
