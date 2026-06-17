@@ -1,7 +1,9 @@
-.PHONY: help install init serve build image set-key
+.PHONY: help bootstrap install init serve build image set-key
 
 help:
 	@echo "Article Generator Skill — make targets:"
+	@echo "  make bootstrap New machine: install + set up content/ + build snapshot"
+	@echo "                 (wraps ./bootstrap.sh; pass CONTENT=<git-url> for a specific repo)"
 	@echo "  make install   Install deps (Quill, Turndown) and build the export snapshot"
 	@echo "  make init      Create the content/ folder skeleton (BRAIN, drafts, images, …)"
 	@echo "                 or clone yours:  make init CONTENT=<git-url>"
@@ -11,6 +13,9 @@ help:
 	@echo "  make image PROMPT=\"<prompt>\" ARTICLE=<NN|slug> [IMAGE=<selfie>] [VARIABILITY=1-5] [OUT=name.png]"
 	@echo "                 Generate a 16:9 cover (model 'pro'). With IMAGE: you in the scene."
 	@echo "                 Tip: the export page (make serve) has the same generator + a gallery."
+
+bootstrap:
+	./bootstrap.sh $(CONTENT)
 
 install:
 	npm install

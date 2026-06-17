@@ -21,25 +21,49 @@ One working folder, two git repos:
 
 The app reads and writes the article files under `content/`.
 
-## Setup
+## Set up on a new machine
+
+One command after cloning the infra repo:
+
+```
+git clone git@github.com:marcushorndt/article-generator-skill.git
+cd article-generator-skill
+./bootstrap.sh                    # installs deps, sets up content/, builds the snapshot
+#   ./bootstrap.sh <content-repo-git-url>   # use a specific private content repo
+#   ./bootstrap.sh none                     # scaffold an EMPTY content/ instead of cloning
+npm run serve                     # → http://localhost:4321  (editor + gallery work now)
+```
+
+`bootstrap.sh` resolves the content repo from its argument, then `$CONTENT_REPO`, then a
+built-in default. It's safe to re-run (idempotent).
+
+### Or step by step
 
 ```
 npm install                       # deps (Quill, Turndown); builds the export snapshot
 npm run init                      # create an empty content/ skeleton …
 #   or: npm run init -- <git-url> # … or clone your private content repo into content/
 #   (make: `make init`  /  `make init CONTENT=<git-url>`)
-npm run set-key                   # optional: store your ContentMaschine key (per machine)
 ```
 
 `npm run init` scaffolds `content/` (`BRAIN.md` + `brainstorms/ drafts/ published/
 images/ sources/`) if it's missing, or clones your private content repo into it. It's
 idempotent — it won't touch an existing `content/`.
 
+### AI cover images (optional, paid)
+
+Image generation uses **[ContentMaschine](https://contentmaschine.ai)** — a **separate,
+paid** pay-as-you-go service. It is **entirely optional**: drafting, editing, the gallery,
+drag-and-drop image ingest, and export all work without it. If you have an account:
+
+```
+npm run set-key                   # store your API key on this machine (per machine)
+```
+
 `set-key` writes the key user-level to `~/.config/contentmaschine/credentials`
-(chmod 600) — **never** into the repo. It's per-machine: clone on another computer and
-just run `npm run set-key` there (or `make set-key KEY=sk-cm-…`, or set
-`$CONTENTMASCHINE_API_KEY`). Without a key, the editor and gallery work normally and only
-image generation is disabled (the app says so). See
+(chmod 600) — **never** into the repo (or `make set-key KEY=sk-cm-…`, or set
+`$CONTENTMASCHINE_API_KEY`). Without a key, the editor and gallery work normally and the
+app shows a one-line hint where generation would be. See
 [ContentMaschine image API](#contentmaschine-image-api-optional).
 
 Two ways to use the export page:
@@ -132,9 +156,12 @@ folders remain the single source of truth (no database). Same engine on the CLI:
 - A copy marker `<!-- ↓↓↓ COPY FROM HERE INTO YOUR EDITOR ↓↓↓ -->` separates the
   machine frontmatter from the paste-ready body.
 
-## ContentMaschine image API (optional)
+## ContentMaschine image API (optional, paid)
 
-For generating / editing cover and inline images. Reference for what's available.
+For generating / editing cover and inline images. **[ContentMaschine](https://contentmaschine.ai)
+is a separate, paid pay-as-you-go service** — sign up there and create an API key. This
+section is the reference for what the integration uses; the feature is optional and the
+rest of the system never calls it.
 
 **Auth.** HTTP Bearer: `Authorization: Bearer sk-cm-…`. The key is **not** stored in
 this repo — it lives user-level at `~/.config/contentmaschine/credentials`

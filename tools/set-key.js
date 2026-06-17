@@ -41,10 +41,12 @@ const base = arg('base') || DEFAULT_BASE;
 const fromFlag = arg('key') || process.env.CM_KEY;
 if (fromFlag) { write(fromFlag, base); }
 else {
+  console.log('ContentMaschine is an optional, PAID service (https://contentmaschine.ai) used');
+  console.log('only for AI cover-image generation. Everything else works without a key.\n');
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   // best-effort masking of the typed key
   rl._writeToOutput = function (s) { if (rl.stdoutMuted && s !== '\r\n') rl.output.write('*'); else rl.output.write(s); };
-  process.stdout.write('Paste your ContentMaschine API key (sk-cm-…): ');
+  process.stdout.write('Paste your ContentMaschine API key (sk-cm-…), or Ctrl+C to skip: ');
   rl.stdoutMuted = true;
   rl.question('', function (answer) { rl.stdoutMuted = false; rl.output.write('\n'); rl.close(); write(answer, base); });
 }
