@@ -46,6 +46,9 @@
   .genrow .primary { margin-left:auto; }
   .genstatus { margin-top:10px; font-size:13px; color:var(--muted); min-height:0; }
   .genstatus.err { color:#b5471f; }
+  .genstatus a { color:#b5471f; }
+  .genhint { margin-top:8px; font-size:11px; color:var(--muted); }
+  .genhint a { color:var(--accent); }
   .srcpreview { width:64px; height:36px; object-fit:cover; border-radius:6px; border:1px solid var(--line); background:#f0eee9; }
   /* hero: the big, currently-selected cover */
   .hero { margin-bottom:10px; }
@@ -138,6 +141,7 @@
           <button class="primary" id="genbtn" onclick="generateImage(this)">Generate 16:9</button>
         </div>
         <div id="genstatus" class="genstatus"></div>
+        <div class="genhint">Cover images via <a href="https://contentmaschine.ai" target="_blank" rel="noopener">ContentMaschine</a> — a separate, optional paid service.</div>
       </div>
     </div>
     <div class="field">
@@ -443,7 +447,7 @@ function loadStudio(raw, selectName){
     var btn = document.getElementById('genbtn'), st = document.getElementById('genstatus');
     studioState.available = d.available !== false;
     if(d.available === false){ btn.disabled = true; st.className = 'genstatus err';
-      st.textContent = 'No ContentMaschine API key on this machine. Run  npm run set-key  (then restart the server). The gallery still works.'; }
+      st.innerHTML = 'No <a href="https://contentmaschine.ai" target="_blank" rel="noopener">ContentMaschine</a> API key on this machine. Run <code>npm run set-key</code> (then restart the server). The gallery still works.'; }
     else if(!genBusy){ btn.disabled = false; if(st.textContent.indexOf('No ContentMaschine') === 0){ st.textContent = ''; st.className = 'genstatus'; } }
     var sel = document.getElementById('gensource');
     sel.innerHTML = '<option value="">— none (text-to-image) —</option>';
