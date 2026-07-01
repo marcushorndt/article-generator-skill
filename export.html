@@ -113,11 +113,11 @@
 </header>
 
 <main class="page">
-  <div class="field">
+  <div class="field" id="titlefield">
     <div class="lab">Title → your editor's title field</div>
     <div class="val"><div class="txt" id="title" contenteditable="true" spellcheck="false" oninput="dirty=true" onblur="storeField('title')"></div><button class="primary" onclick="copyText('title', this)">Copy</button></div>
   </div>
-  <div class="field">
+  <div class="field" id="subtitlefield">
     <div class="lab">Subtitle → your editor's subtitle field</div>
     <div class="val"><div class="txt" id="subtitle" contenteditable="true" spellcheck="false" oninput="dirty=true" onblur="storeField('subtitle')"></div><button class="primary" onclick="copyText('subtitle', this)">Copy</button></div>
   </div>
@@ -160,7 +160,7 @@
   </details>
 
   <div class="field">
-    <div class="lab bodylab"><span>Article Body</span><span style="display:flex;gap:8px;"><button id="savebtn" onclick="saveDraft(this)">Save to file</button><button class="primary" onclick="copyBody(this)">Copy body as rich text</button></span></div>
+    <div class="lab bodylab"><span id="bodylabtext">Article Body</span><span style="display:flex;gap:8px;"><button id="savebtn" onclick="saveDraft(this)">Save to file</button><button class="primary" id="bodycopybtn" onclick="onBodyCopy(this)">Copy body as rich text</button></span></div>
     <div id="editorwrap"><div id="editor"></div></div>
   </div>
 </main>
@@ -185,6 +185,7 @@ quill.clipboard.addMatcher('HR', function(){ return new Delta().insert({ divider
 var turndownService = new TurndownService({ headingStyle:'atx', hr:'---', bulletListMarker:'-', emDelimiter:'*', strongDelimiter:'**', codeBlockStyle:'fenced' });
 turndownService.escape = function(s){ return s; };   // keep prose verbatim — no backslash escaping
 var currentKey = null;                                // path of the draft currently shown
+var currentPlatform = '';                             // platform of the shown draft (drives LinkedIn-vs-editor UI)
 var dirty = false;                                    // are there unsaved changes?
 quill.on('text-change', function(d, o, source){ if(source === 'user') dirty = true; });
 function field(raw, key){
@@ -210,6 +211,28 @@ function cleanVal(v){
   v = v.trim();
   if(/^\[.*\]$/.test(v)){ try { return JSON.parse(v.replace(/'/g,'"')); } catch(e){ return v.replace(/^\[|\]$/g,''); } }
   return v.replace(/^["']/,'').replace(/["']$/,'');
+}
+// ---- Platform awareness (dropdown labels + LinkedIn export mode) ----
+function platformTag(p){
+  p = (p || '').toLowerCase();
+  var map = { linkedin:'LinkedIn', substack:'Substack', ghost:'Ghost', medium:'Medium', wordpress:'WordPress' };
+  return map[p] || (p ? p.charAt(0).toUpperCase() + p.slice(1) : '');
+}
+function draftLabel(path){
+  var base = path.replace(/\.md$/, '');
+  var raw = (window.DRAFTS && window.DRAFTS[path]) || '';
+  var tag = platformTag(field(raw, 'platform'));
+  return tag ? '[' + tag + '] ' + base : base;
+}
+// LinkedIn is one text field: hide the Substack title/subtitle split and switch the body
+// copy to a plain-text "whole post" (unicode bold survives as literal characters).
+function applyPlatformUI(){
+  var isLI = currentPlatform === 'linkedin';
+  var tf = document.getElementById('titlefield'), sf = document.getElementById('subtitlefield');
+  if(tf) tf.style.display = isLI ? 'none' : '';
+  if(sf) sf.style.display = isLI ? 'none' : '';
+  var lab = document.getElementById('bodylabtext'); if(lab) lab.textContent = isLI ? 'LinkedIn post (whole)' : 'Article Body';
+  var b = document.getElementById('bodycopybtn'); if(b) b.textContent = isLI ? 'Copy whole post' : 'Copy body as rich text';
 }
 var META_FIELDS = [
   ['status','Status'], ['number','No.'], ['platform','Platform'], ['created','Created'],
@@ -283,6 +306,8 @@ function run(raw, key){
   if(srcEl.value !== raw){ srcEl.value = raw; }   // keep source in sync with the shown draft
   document.getElementById('title').textContent = field(raw,'title');
   document.getElementById('subtitle').textContent = field(raw,'subtitle');
+  currentPlatform = (field(raw,'platform') || '').toLowerCase();
+  applyPlatformUI();                             // LinkedIn hides title/subtitle + swaps the copy button
   var r = renderMd(raw);
   var delta = quill.clipboard.convert({ html: r.html || '<p></p>' });
   quill.setContents(delta, 'silent');
@@ -325,7 +350,7 @@ function setStatus(val){
       if(window.DRAFTS){ delete window.DRAFTS[oldPath]; window.DRAFTS[newPath] = content; }
       var sel = document.getElementById('draftsel');
       for(var i = 0; i < sel.options.length; i++){
-        if(sel.options[i].value === oldPath){ sel.options[i].value = newPath; sel.options[i].textContent = newPath.replace(/\.md$/,''); break; }
+        if(sel.options[i].value === oldPath){ sel.options[i].value = newPath; sel.options[i].textContent = draftLabel(newPath); break; }
       }
       currentKey = newPath; sel.value = newPath; src.value = content; dirty = false;
     })
@@ -367,6 +392,24 @@ function copyBody(btn){
   try { document.execCommand('copy'); flash(btn); }
   catch(e){ alert('Copy failed — select the preview manually and press Cmd/Ctrl+C.'); }
   sel.removeAllRanges();
+}
+// Body copy dispatch: LinkedIn = plain-text whole post; everything else = rich-text body.
+function onBodyCopy(btn){ if(currentPlatform === 'linkedin') copyWholePost(btn); else copyBody(btn); }
+// LinkedIn: copy the entire post as PLAIN text (hook included), paragraphs separated by
+// blank lines, unicode bold preserved as literal characters. Uses the live (possibly
+// edited) editor content, mirroring how buildMarkdown() derives the body.
+function copyWholePost(btn){
+  var body = turndownService.turndown(quill.root.innerHTML).trim();
+  body = body.replace(/^([ \t]*)[-*][ \t]{2,}/gm, '$1- ').replace(/^([ \t]*)(\d+\.)[ \t]{2,}/gm, '$1$2 ');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(body).then(function(){ flash(btn, '✓ copied'); }).catch(function(){ fallbackCopyText(body, btn); });
+  } else { fallbackCopyText(body, btn); }
+}
+function fallbackCopyText(text, btn){
+  var ta = document.createElement('textarea'); ta.value = text;
+  ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.focus(); ta.select();
+  try { document.execCommand('copy'); flash(btn, '✓ copied'); } catch(e){ alert('Copy failed — select the body manually and press Cmd/Ctrl+C.'); }
+  document.body.removeChild(ta);
 }
 function flash(btn, label){ var o = btn.textContent; btn.textContent = label || '✓ copied'; setTimeout(function(){ btn.textContent = o; }, 1400); }
 // Reassemble the .md: frontmatter from the source (title/subtitle kept in sync on blur),
@@ -672,7 +715,7 @@ document.addEventListener('click', function(e){
       if(order[da] !== order[db]) return (order[da] == null ? 9 : order[da]) - (order[db] == null ? 9 : order[db]);
       return b.split('/').pop().localeCompare(a.split('/').pop(), undefined, {numeric:true});
     });
-    names.forEach(function(name){ var o = document.createElement('option'); o.value = name; o.textContent = name.replace(/\.md$/,''); sel.appendChild(o); });
+    names.forEach(function(name){ var o = document.createElement('option'); o.value = name; o.textContent = draftLabel(name); sel.appendChild(o); });
     var LS_KEY = 'articlegen.lastDraft';
     sel.addEventListener('change', function(){ if(this.value){ try { localStorage.setItem(LS_KEY, this.value); } catch(e){} run(window.DRAFTS[this.value], this.value); } });
     var pick = names[0];

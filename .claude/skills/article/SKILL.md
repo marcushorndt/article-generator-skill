@@ -105,7 +105,9 @@ Rules:
    drafts (from a ~120-word impulse to a ~1500-word essay).
 6. **Write the file**: `drafts/<number>-slug.md` with frontmatter from
    `templates/article-frontmatter.md` (fill every field incl. `publication` and `platform`,
-   `status: draft`, `created` = today). `<number>` = next free number **for that
+   `status: draft`, `created` = today). Write **clean `key: value` frontmatter** — do NOT
+   carry the template's inline `#` comments into the draft; the export parser reads the
+   whole line, so a trailing comment corrupts the value (e.g. `platform`). `<number>` = next free number **for that
    publication's prefix** (`alpha-code`: `NN`; `founder-en`: `en-NN`). Right after the
    closing `---` of the frontmatter, add the copy marker:
    `<!-- ↓↓↓ COPY FROM HERE INTO YOUR EDITOR ↓↓↓ -->`
