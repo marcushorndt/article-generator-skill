@@ -2,8 +2,9 @@
 title: ""                    # working title
 subtitle: ""                 # subtitle / standfirst
 status: brainstorm           # brainstorm | draft | published
-platform: substack           # target platform (substack, ghost, medium, …)
-number:                      # sequential number (e.g. 03)
+publication: alpha-code      # which BRAIN/voice: alpha-code (DE/Substack) | founder-en (EN/LinkedIn)
+platform: substack           # export format: substack | ghost | medium | linkedin
+number:                      # sequential number, prefixed per publication (e.g. 03, or en-01)
 url: ""                      # published URL, once live
 audience: ""                 # who this article is for
 promise: ""                  # the one promise to the reader

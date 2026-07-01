@@ -9,6 +9,23 @@ finished drafts into any WYSIWYG editor (Substack, Ghost, Medium, WordPress, …
 > images, and the `BRAIN.md` voice guide) lives in a **separate private repo** under
 > `content/` — see [Two-repo layout](#two-repo-layout). This repo is infrastructure only.
 
+## Publications (multi-brain)
+
+The system supports **multiple publications, one brain (voice) each** — because different
+outlets need different voices, languages, and export formats. It's a light layer: drafts
+stay in the flat `content/drafts/` folder (so the server and export builder are untouched);
+a per-publication brain file + a `publication` frontmatter field + a filename prefix keep
+them apart.
+
+| Publication  | Brain                         | Language | Platform | Draft prefix |
+|--------------|-------------------------------|----------|----------|--------------|
+| `alpha-code` | `content/BRAIN.md`            | German   | Substack | `NN-slug`    |
+| `founder-en` | `content/BRAIN.founder-en.md` | English  | LinkedIn | `en-NN-slug` |
+
+Run `/article <publication> …` (or let it infer + confirm). Add a publication by dropping a
+new `content/BRAIN.<name>.md` and using its prefix. LinkedIn export = one text field, body
+from the hook, unicode bold, no H2 headings.
+
 ## Two-repo layout
 
 One working folder, two git repos:

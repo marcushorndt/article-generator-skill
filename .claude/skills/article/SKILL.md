@@ -41,6 +41,37 @@ and writes the article files under `content/` — when this doc says `drafts/NN-
 the file on disk is `content/drafts/NN-slug.md`. **Never** change the wording of existing
 articles unless the author explicitly asks.
 
+## Publications (multi-brain)
+
+The system holds **one brain per publication** — a distinct voice, audience, language, and
+export format. Pick the publication first; it decides which brain to load and how to export.
+
+| Publication  | Brain file               | Language | Platform | Draft prefix |
+|--------------|--------------------------|----------|----------|--------------|
+| `alpha-code` | `content/BRAIN.md`       | German   | Substack | `NN-slug`    |
+| `founder-en` | `content/BRAIN.founder-en.md` | English | LinkedIn | `en-NN-slug` |
+
+Rules:
+- **Brain resolution:** `alpha-code` → `content/BRAIN.md` (the default). Any other publication
+  `X` → `content/BRAIN.X.md`. Read the matching brain; never blend voices across publications.
+- **Which publication?** If the author names one (`/article founder-en …`), use it. Otherwise
+  infer from the brainstorm (English AI/founder topic → `founder-en`; German relationship/
+  masculinity → `alpha-code`) and **confirm in one line** before writing. When unsure, ask.
+- **Numbering is per-publication:** next free number *within that publication's prefix*
+  (`alpha-code`: `NN`; `founder-en`: `en-NN`). Drafts share the flat `drafts/` folder — the
+  prefix keeps them separate, so the flat tooling (server, export builder) is untouched.
+- **Frontmatter:** always set `publication` and `platform` (see the template).
+
+### Export rules per platform
+- **Substack / Ghost / Medium** (`alpha-code`): body starts at `##` (H2); `title`/`subtitle`
+  go in the editor's own fields; cover image in its field. (This is the default; see
+  "Editor rules" below.)
+- **LinkedIn** (`founder-en`): a LinkedIn post is **one text field**. The body IS the whole
+  post, **starting at the hook** — no `#`/`##` headings, no separate title/subtitle fields.
+  Use **unicode bold** for the one or two thesis lines (pastes intact). Keep paragraphs to
+  1–2 phone lines. Images are uploaded manually. `title`/`subtitle` in frontmatter are for
+  reference/other reuse, not pasted.
+
 ## Detect the mode
 
 1. **New draft** — the author drops a brainstorm in `brainstorms/` or gives it in chat.
@@ -52,7 +83,9 @@ articles unless the author explicitly asks.
 
 ## Create a draft
 
-1. **Read BRAIN.md fully.** Voice, stance, audience, structure pattern, do's/don'ts,
+0. **Pick the publication** (see "Publications" above) — it selects the brain and export format.
+1. **Read the publication's brain fully** (`content/BRAIN.md` for `alpha-code`, else
+   `content/BRAIN.X.md`). Voice, stance, audience, structure pattern, do's/don'ts,
    recurring themes AND the "📌 Memorized" section — the latter takes priority because
    it holds the author's deliberate decisions.
 2. **Read 2–3 existing drafts** (newest first) as a concrete style reference — how real
@@ -70,12 +103,15 @@ articles unless the author explicitly asks.
    structure pattern from BRAIN.md: hook → problem escalation → confession/turn → root
    cause → reframe/vision → resonant closing line → CTA. Match length to comparable
    drafts (from a ~120-word impulse to a ~1500-word essay).
-6. **Write the file**: `drafts/NN-slug.md` with frontmatter from
-   `templates/article-frontmatter.md` (fill every field, `status: draft`,
-   `created` = today). NN = next free number. Right after the closing `---` of the
-   frontmatter, add the copy marker:
+6. **Write the file**: `drafts/<number>-slug.md` with frontmatter from
+   `templates/article-frontmatter.md` (fill every field incl. `publication` and `platform`,
+   `status: draft`, `created` = today). `<number>` = next free number **for that
+   publication's prefix** (`alpha-code`: `NN`; `founder-en`: `en-NN`). Right after the
+   closing `---` of the frontmatter, add the copy marker:
    `<!-- ↓↓↓ COPY FROM HERE INTO YOUR EDITOR ↓↓↓ -->`
-   Format the body by the **editor rules** (see below).
+   Format the body by the publication's **export rules** — the H2/title/subtitle "editor
+   rules" below for Substack/Ghost/Medium, or the **LinkedIn** rules (single field, body
+   from the hook, unicode bold, no headings) for `founder-en`.
 7. **Suggest a cover image**: name/create the matching `images/<topic>/` folder, list
    candidates, set `image_folder`/`featured_image` if known.
 8. **Report briefly**: title, promise, chosen hook, open points, and the reminder to
@@ -139,8 +175,10 @@ When the author wants to pin down a finding/stance/phrasing:
 
 1. State it concisely and generally (applicable to future articles, not just the
    current one).
-2. File it in `BRAIN.md`: thematic points into the matching section (1–7); deliberate
-   "from now on" decisions additionally under **📌 Memorized** as `- [YYYY-MM-DD] …`.
+2. File it in **the relevant publication's brain** (`BRAIN.md` for `alpha-code`, else
+   `BRAIN.X.md`): thematic points into the matching section (1–7); deliberate "from now
+   on" decisions additionally under **📌 Memorized** as `- [YYYY-MM-DD] …`. If the author
+   doesn't say which publication, ask — a memory belongs to one voice, not both.
 3. Confirm what was saved and where.
 
 This growing brain is the core of the system: it makes every new draft more consistent
